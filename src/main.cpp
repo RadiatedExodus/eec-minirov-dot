@@ -18,9 +18,6 @@ Servo servoLeft;
 Servo servoRight;
 Servo servoMiddle;
 
-void main_statictest();
-void loop_statictest();
-
 int axisConvertServo(int jAxisValue) {
   if (jAxisValue >= 470 && jAxisValue <= 550) return 1500;
   return map(jAxisValue, 0, 1023, 1000, 2000);
@@ -38,27 +35,21 @@ void printAxis(const char* axis, int joystick, int pwm) {
 void oledPrintAxis(const char* axis, int joystick, int pwm) {
   display.print(axis);
   display.print(": ");
-  display.print(axis);
+  display.print(joystick); 
   display.print("; ");
   display.print(pwm);
   display.println();
 }
 
 void setup() {
-  //if (true) {
-  //  main_statictest();
-  //  return;
-  //}
-
   Serial.begin(9600);
   Serial.println("Nano startup");
 
   Wire.begin();
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   display.clearDisplay();
-  display.setTextSize(2);
+  display.setTextSize(1); 
   display.setTextColor(SSD1306_WHITE);
-  display.clearDisplay();
 
   pinMode(JOYSTICK_1_XAXIS_PIN, INPUT);
   pinMode(JOYSTICK_1_YAXIS_PIN, INPUT);
@@ -66,7 +57,9 @@ void setup() {
   pinMode(JOYSTICK_2_YAXIS_PIN, INPUT);
 
   display.clearDisplay();
+  display.setCursor(0, 0);
   display.print("Servo initialize");
+  display.display();
 
   servoLeft.attach(SERVO_1_PIN);
   servoRight.attach(SERVO_2_PIN);
@@ -79,47 +72,63 @@ void setup() {
   delay(20);
 
   display.clearDisplay();
+  display.setCursor(0, 0);
   display.print("OK");
+  display.display();
   Serial.println("OK");
   delay(2000);
 }
 
 void loop() {
-  //if (true) {
-  //  loop_statictest();
-  //  return;
-  //}
-
   int xJoystick1Val = analogRead(JOYSTICK_1_XAXIS_PIN);
   int yJoystick1Val = analogRead(JOYSTICK_1_YAXIS_PIN);
   int xJoystick2Val = analogRead(JOYSTICK_2_XAXIS_PIN);
   int yJoystick2Val = analogRead(JOYSTICK_2_YAXIS_PIN);
 
-  int xPWM1Val = axisConvertServo(xJoystick1Val);
   int yPWM1Val = axisConvertServo(yJoystick1Val);
   int xPWM2Val = axisConvertServo(xJoystick2Val);
   int yPWM2Val = axisConvertServo(yJoystick2Val);
 
-  // notes:
-  // we have to inverse it (down is x+ top is x-) (right is y+ left is y-)
-  // top-down is x
-  // left right is y
+  int leftServoPWM = 1500;
+  int rightServoPWM = 1500;
 
-  printAxis("LX", xJoystick1Val, xPWM1Val);
+  // Control Left-Right Motion
+  // TURN LEFT
+  if (xJoystick1Val < 470) { 
+    int offset = map(xJoystick1Val, 470, 0, 0, 500);
+    rightServoPWM = 1500 + offset; // turn CW
+    leftServoPWM  = 1500 - offset; // turn CCW
+  }
+  // TURN RIGHT
+  else if (xJoystick1Val > 550) { 
+    int offset = map(xJoystick1Val, 550, 1023, 0, 500);
+    rightServoPWM = 1500 - offset; // turn CCW
+    leftServoPWM  = 1500 + offset; // turn CW
+  }
+  else {
+    leftServoPWM  = 1500;
+    rightServoPWM = 1500;
+  }
+
+  // Output commands to Servos 
+  servoLeft.writeMicroseconds(leftServoPWM);
+  servoRight.writeMicroseconds(rightServoPWM);
+  servoMiddle.writeMicroseconds(xPWM2Val); // Float/Sink control
+
+  printAxis("LX", xJoystick1Val, leftServoPWM);
   printAxis("LY", yJoystick1Val, yPWM1Val);
-  printAxis("RX", xJoystick1Val, xPWM2Val);
-  printAxis("RY", yJoystick1Val, yPWM2Val);
+  printAxis("RX", xJoystick2Val, xPWM2Val);
+  printAxis("RY", yJoystick2Val, yPWM2Val);
   Serial.println();
 
+  // OLED Display 
   display.clearDisplay();
-  oledPrintAxis("LX", xJoystick1Val, xPWM1Val);
+  display.setCursor(0, 0);
+  oledPrintAxis("LX", xJoystick1Val, leftServoPWM);
   oledPrintAxis("LY", yJoystick1Val, yPWM1Val);
   oledPrintAxis("RX", xJoystick2Val, xPWM2Val);
   oledPrintAxis("RY", yJoystick2Val, yPWM2Val);
+  display.display(); // FIXED: Added display.display() to render on OLED
 
-  servoLeft.writeMicroseconds(xPWM1Val);
-  servoRight.writeMicroseconds(xPWM1Val);
-  
-  servoMiddle.writeMicroseconds(xPWM2Val);
-  delay(100);
+  delay(500); 
 }
