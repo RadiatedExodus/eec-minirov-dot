@@ -90,7 +90,7 @@ void loop() {
   int yJoystick2Val = analogRead(JOYSTICK_2_YAXIS_PIN);
 
   int xPWM1Val = axisConvertServo(xJoystick1Val);               // horizontal control
-  int yPWM1Val = inverseServo(axisConvertServo(yJoystick1Val)); // horizontal control
+  int yPWM1Val = axisConvertServo(yJoystick1Val);               // horizontal control
   int xPWM2Val = inverseServo(axisConvertServo(xJoystick2Val)); // vertical control
   int yPWM2Val = inverseServo(axisConvertServo(yJoystick2Val));
 
@@ -111,8 +111,18 @@ void loop() {
   oledPrintAxis("RX", xJoystick2Val, xPWM2Val);
   oledPrintAxis("RY", yJoystick2Val, yPWM2Val);
 
-  servoLeft.writeMicroseconds(xPWM1Val);
-  servoRight.writeMicroseconds(xPWM1Val);
+  if (yPWM1Val < 1500) {
+    int pwmOffset = map(yPWM1Val, 1500, 1000, 0, 500);
+    servoLeft.writeMicroseconds(1500 - pwmOffset);
+    servoRight.writeMicroseconds(1500 + pwmOffset);
+  } else if (yPWM1Val > 1500) {
+    int pwmOffset = map(yPWM1Val, 1500, 2000, 0, 500);
+    servoLeft.writeMicroseconds(1500 + pwmOffset);
+    servoRight.writeMicroseconds(1500 - pwmOffset);
+  } else {
+    servoLeft.writeMicroseconds(xPWM1Val);
+    servoRight.writeMicroseconds(xPWM1Val);
+  }
   
   servoMiddle.writeMicroseconds(xPWM2Val);
   delay(100);
