@@ -26,6 +26,10 @@ int axisConvertServo(int jAxisValue) {
   return map(jAxisValue, 0, 1023, 1000, 2000);
 }
 
+int inverseServo(int sAxisValue) {
+  return map(sAxisValue, 1000, 2000, 2000, 1000);
+}
+
 void printAxis(const char* axis, int joystick, int pwm) {
   Serial.print(" ");
   Serial.print(axis);
@@ -45,11 +49,6 @@ void oledPrintAxis(const char* axis, int joystick, int pwm) {
 }
 
 void setup() {
-  //if (true) {
-  //  main_statictest();
-  //  return;
-  //}
-
   Serial.begin(9600);
   Serial.println("Nano startup");
 
@@ -85,20 +84,15 @@ void setup() {
 }
 
 void loop() {
-  //if (true) {
-  //  loop_statictest();
-  //  return;
-  //}
-
   int xJoystick1Val = analogRead(JOYSTICK_1_XAXIS_PIN);
   int yJoystick1Val = analogRead(JOYSTICK_1_YAXIS_PIN);
   int xJoystick2Val = analogRead(JOYSTICK_2_XAXIS_PIN);
   int yJoystick2Val = analogRead(JOYSTICK_2_YAXIS_PIN);
 
-  int xPWM1Val = axisConvertServo(xJoystick1Val);
-  int yPWM1Val = axisConvertServo(yJoystick1Val);
-  int xPWM2Val = axisConvertServo(xJoystick2Val);
-  int yPWM2Val = axisConvertServo(yJoystick2Val);
+  int xPWM1Val = axisConvertServo(xJoystick1Val);               // horizontal control
+  int yPWM1Val = inverseServo(axisConvertServo(yJoystick1Val)); // horizontal control
+  int xPWM2Val = inverseServo(axisConvertServo(xJoystick2Val)); // vertical control
+  int yPWM2Val = inverseServo(axisConvertServo(yJoystick2Val));
 
   // notes:
   // we have to inverse it (down is x+ top is x-) (right is y+ left is y-)
