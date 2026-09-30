@@ -2,9 +2,9 @@
 #include <Wire.h>
 #include <Servo.h>
 
-#define SERVO_1_PIN 2
-#define SERVO_2_PIN 3
-#define SERVO_3_PIN 4
+#define SERVO_1_PIN 5
+#define SERVO_2_PIN 6
+#define SERVO_3_PIN 7
 
 #define JOYSTICK_1_XAXIS_PIN A1
 #define JOYSTICK_1_YAXIS_PIN A2
