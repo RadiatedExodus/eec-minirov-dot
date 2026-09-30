@@ -4,12 +4,15 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
-#define JOYSTICK_DEADZONE 40
-#define MAX_THRUST 200
+#define THROTTLE_DEADZONE     40
+#define TURNING_DEADZONE      60
+#define VERTICAL_DEADZONE     40
+#define MAX_THRUST_VERTICAL   200
+#define MAX_THRUST_HORIZONTAL 200
 
-#define SERVO_1_PIN 5 // digital pins
-#define SERVO_2_PIN 6
-#define SERVO_3_PIN 7
+#define SERVO_1_PIN 5 // digital pins, left
+#define SERVO_2_PIN 6 // right
+#define SERVO_3_PIN 7 // middle
 
 #define JOYSTICK_1_XAXIS_PIN A0 // left joystick
 #define JOYSTICK_1_YAXIS_PIN A1
@@ -24,21 +27,28 @@ Servo servoLeft;
 Servo servoRight;
 Servo servoMiddle;
 
-int readJoystick(int pin, bool inverted) {
+int readJoystick(int pin, bool inverted, int deadzone, int maxThrust) {
     int raw = analogRead(pin);
     int offset = raw - 512;
-    if (abs(offset) < JOYSTICK_DEADZONE) return 0;
+    if (abs(offset) < deadzone) return 0;
 
     int output;
     if (offset > 0) {
-        output = map(raw, 512 + JOYSTICK_DEADZONE, 1023, 0, MAX_THRUST);
+        output = map(raw, 512 + deadzone, 1023, 0, maxThrust);
     } else {
-        output = map(raw, 0, 512 - JOYSTICK_DEADZONE, -MAX_THRUST, 0);
+        output = map(raw, 0, 512 - deadzone, -maxThrust, 0);
     }
 
-    output = constrain(output, -MAX_THRUST, MAX_THRUST);
+    output = constrain(output, -maxThrust, maxThrust);
     if (inverted) output = -output;
     return output;
+}
+
+int applyCurve(int input, int maxThrust) {
+    long magnitude = abs(input);
+    long curved = magnitude * magnitude / maxThrust;
+    if (input < 0) curved = -curved;
+    return (int)curved;
 }
 
 int thrustToPWM(int thrust) {
@@ -73,18 +83,22 @@ void setup() {
 }
 
 void loop() {
-    int throttle = readJoystick(JOYSTICK_1_XAXIS_PIN, false);
-    int turn     = readJoystick(JOYSTICK_1_YAXIS_PIN, false);
-    int vertical = readJoystick(JOYSTICK_2_XAXIS_PIN, true);
+    int throttle = readJoystick(JOYSTICK_1_XAXIS_PIN, false, THROTTLE_DEADZONE, MAX_THRUST_HORIZONTAL);
+    int turn     = readJoystick(JOYSTICK_1_YAXIS_PIN, false, TURNING_DEADZONE,  MAX_THRUST_HORIZONTAL);
+    int vertical = readJoystick(JOYSTICK_2_XAXIS_PIN, true,  VERTICAL_DEADZONE, MAX_THRUST_VERTICAL);
 
+    // curve for smoother turning
+    turn = applyCurve(turn, MAX_THRUST_HORIZONTAL);
+
+    // calculate l/r thruster
     int leftThrust  = throttle + turn;
     int rightThrust = throttle - turn;
 
     // enforce max thrust
     int maxMagnitude = max(abs(leftThrust), abs(rightThrust));
-    if (maxMagnitude > MAX_THRUST) {
-        leftThrust = (long)leftThrust * MAX_THRUST / maxMagnitude;
-        rightThrust = (long)rightThrust * MAX_THRUST / maxMagnitude;
+    if (maxMagnitude > MAX_THRUST_HORIZONTAL) {
+        leftThrust = (long)leftThrust * MAX_THRUST_HORIZONTAL / maxMagnitude;
+        rightThrust = (long)rightThrust * MAX_THRUST_HORIZONTAL / maxMagnitude;
     }
 
     servoLeft.writeMicroseconds(thrustToPWM(leftThrust));
