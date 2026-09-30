@@ -4,12 +4,14 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
-#define THROTTLE_DEADZONE     40
-#define TURNING_DEADZONE      60
-#define VERTICAL_DEADZONE     40
-#define MAX_THRUST_VERTICAL   300
-#define MAX_THRUST_HORIZONTAL 200
-#define SLOW_MODE_SCALE       75
+#define THROTTLE_DEADZONE          40
+#define TURNING_DEADZONE           60
+#define VERTICAL_DEADZONE          40
+#define MAX_THRUST_VERTICAL        300
+#define MAX_THRUST_HORIZONTAL      200
+#define SLOW_MODE_SCALE            75  // how many percent reduce from max thrust
+#define VERTICAL_ROT_CORRECTION_UP 15  // in percent
+#define VERTICAL_ROT_CORRECTION_DW 20  // in percent
 
 #define SERVO_1_PIN 5 // digital pins, left
 #define SERVO_2_PIN 6 // right
@@ -55,6 +57,16 @@ int applyCurve(int input, int maxThrust) {
     long curved = magnitude * magnitude / maxThrust;
     if (input < 0) curved = -curved;
     return (int)curved;
+}
+
+int getVerticalYawCorrection(int vertical) {
+    int compensation;
+    if (vertical > 0) {
+        compensation = VERTICAL_ROT_CORRECTION_UP;
+    } else {
+        compensation = VERTICAL_ROT_CORRECTION_DW;
+    }
+    return (long)vertical * MAX_THRUST_HORIZONTAL * compensation / MAX_THRUST_VERTICAL / 100;
 }
 
 int thrustToPWM(int thrust) {
@@ -107,6 +119,9 @@ void loop() {
 
     // curve for smoother turning
     turn = applyCurve(turn, MAX_THRUST_HORIZONTAL);
+
+    // vertical movement rotation correction
+    turn -= getVerticalYawCorrection(vertical);
 
     // calculate l/r thruster
     int leftThrust  = throttle + turn;
