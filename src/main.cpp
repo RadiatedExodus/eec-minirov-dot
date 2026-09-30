@@ -7,8 +7,9 @@
 #define THROTTLE_DEADZONE     40
 #define TURNING_DEADZONE      60
 #define VERTICAL_DEADZONE     40
-#define MAX_THRUST_VERTICAL   200
+#define MAX_THRUST_VERTICAL   300
 #define MAX_THRUST_HORIZONTAL 200
+#define SLOW_MODE_SCALE       75
 
 #define SERVO_1_PIN 5 // digital pins, left
 #define SERVO_2_PIN 6 // right
@@ -16,8 +17,10 @@
 
 #define JOYSTICK_1_XAXIS_PIN A0 // left joystick
 #define JOYSTICK_1_YAXIS_PIN A1
+#define JOYSTICK_1_SWBTN_PIN 10 // digital
 #define JOYSTICK_2_XAXIS_PIN A2 // right joystick
 #define JOYSTICK_2_YAXIS_PIN A3
+#define JOYSTICK_2_SWBTN_PIN 11 // digital
 
 void main_statictest();
 void loop_statictest();
@@ -26,6 +29,9 @@ Adafruit_SSD1306 display(128, 64, &Wire, -1);
 Servo servoLeft;
 Servo servoRight;
 Servo servoMiddle;
+
+bool isSlowMode = false;
+bool lastSlowModeState = HIGH;
 
 int readJoystick(int pin, bool inverted, int deadzone, int maxThrust) {
     int raw = analogRead(pin);
@@ -65,12 +71,15 @@ void setup() {
     display.setTextSize(2);
     display.setTextColor(SSD1306_WHITE);
     display.clearDisplay();
+    display.println("Test");
     display.display();
 
     pinMode(JOYSTICK_1_XAXIS_PIN, INPUT);
     pinMode(JOYSTICK_1_YAXIS_PIN, INPUT);
+    pinMode(JOYSTICK_1_SWBTN_PIN, INPUT_PULLUP);
     pinMode(JOYSTICK_2_XAXIS_PIN, INPUT);
     pinMode(JOYSTICK_2_YAXIS_PIN, INPUT);
+    pinMode(JOYSTICK_2_SWBTN_PIN, INPUT_PULLUP);
 
     servoLeft.attach(SERVO_1_PIN);
     servoRight.attach(SERVO_2_PIN);
@@ -83,6 +92,15 @@ void setup() {
 }
 
 void loop() {
+    // slow mode check
+    bool rtSlowMode = digitalRead(JOYSTICK_1_SWBTN_PIN);
+    if (lastSlowModeState == HIGH && rtSlowMode == LOW) {
+        isSlowMode = !isSlowMode;
+        delay(30);
+    }
+    lastSlowModeState = rtSlowMode;
+
+    // read joystick
     int throttle = readJoystick(JOYSTICK_1_XAXIS_PIN, false, THROTTLE_DEADZONE, MAX_THRUST_HORIZONTAL);
     int turn     = readJoystick(JOYSTICK_1_YAXIS_PIN, false, TURNING_DEADZONE,  MAX_THRUST_HORIZONTAL);
     int vertical = readJoystick(JOYSTICK_2_XAXIS_PIN, true,  VERTICAL_DEADZONE, MAX_THRUST_VERTICAL);
@@ -97,10 +115,17 @@ void loop() {
     // enforce max thrust
     int maxMagnitude = max(abs(leftThrust), abs(rightThrust));
     if (maxMagnitude > MAX_THRUST_HORIZONTAL) {
-        leftThrust = (long)leftThrust * MAX_THRUST_HORIZONTAL / maxMagnitude;
+        leftThrust  = (long)leftThrust * MAX_THRUST_HORIZONTAL / maxMagnitude;
         rightThrust = (long)rightThrust * MAX_THRUST_HORIZONTAL / maxMagnitude;
     }
 
+    // apply slow mode
+    if (isSlowMode) {
+        leftThrust  = (long)leftThrust  * SLOW_MODE_SCALE / 100;
+        rightThrust = (long)rightThrust * SLOW_MODE_SCALE / 100;
+    }
+
+    // send command
     servoLeft.writeMicroseconds(thrustToPWM(leftThrust));
     servoRight.writeMicroseconds(thrustToPWM(rightThrust));
     servoMiddle.writeMicroseconds(thrustToPWM(vertical));
