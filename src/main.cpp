@@ -1,8 +1,5 @@
 #include <Arduino.h>
-#include <Wire.h>
 #include <Servo.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
 
 #define THROTTLE_DEADZONE          40
 #define TURNING_DEADZONE           60
@@ -24,10 +21,6 @@
 #define JOYSTICK_2_YAXIS_PIN A3
 #define JOYSTICK_2_SWBTN_PIN 11 // digital
 
-void main_statictest();
-void loop_statictest();
-
-Adafruit_SSD1306 display(128, 64, &Wire, -1);
 Servo servoLeft;
 Servo servoRight;
 Servo servoMiddle;
@@ -74,18 +67,6 @@ int thrustToPWM(int thrust) {
 }
 
 void setup() {
-    Serial.begin(9600);
-    Serial.println("Nano startup");
-
-    Wire.begin();
-    display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-    display.clearDisplay();
-    display.setTextSize(2);
-    display.setTextColor(SSD1306_WHITE);
-    display.clearDisplay();
-    display.println("Test");
-    display.display();
-
     pinMode(JOYSTICK_1_XAXIS_PIN, INPUT);
     pinMode(JOYSTICK_1_YAXIS_PIN, INPUT);
     pinMode(JOYSTICK_1_SWBTN_PIN, INPUT_PULLUP);
