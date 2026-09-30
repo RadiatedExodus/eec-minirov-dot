@@ -9,6 +9,7 @@
 #define SLOW_MODE_SCALE            75  // how many percent reduce from max thrust
 #define VERTICAL_ROT_CORRECTION_UP 15  // in percent
 #define VERTICAL_ROT_CORRECTION_DW 20  // in percent
+#define HOVER_MODE_THRUST          -60
 
 #define SERVO_1_PIN 5 // digital pins, left
 #define SERVO_2_PIN 6 // right
@@ -27,6 +28,9 @@ Servo servoMiddle;
 
 bool isSlowMode = false;
 bool lastSlowModeState = HIGH;
+
+bool isHoverMode = false;
+bool lastHoverModeState = HIGH;
 
 int readJoystick(int pin, bool inverted, int deadzone, int maxThrust) {
     int raw = analogRead(pin);
@@ -93,10 +97,25 @@ void loop() {
     }
     lastSlowModeState = rtSlowMode;
 
+    // hover mode check
+    bool rtHoverMode = digitalRead(JOYSTICK_2_SWBTN_PIN);
+    if (lastHoverModeState == HIGH && rtHoverMode == LOW) {
+        isHoverMode = !isHoverMode;
+        delay(30);
+    }
+    lastHoverModeState = rtHoverMode;
+
     // read joystick
     int throttle = readJoystick(JOYSTICK_1_XAXIS_PIN, false, THROTTLE_DEADZONE, MAX_THRUST_HORIZONTAL);
     int turn     = readJoystick(JOYSTICK_1_YAXIS_PIN, false, TURNING_DEADZONE,  MAX_THRUST_HORIZONTAL);
     int vertical = readJoystick(JOYSTICK_2_XAXIS_PIN, true,  VERTICAL_DEADZONE, MAX_THRUST_VERTICAL);
+
+    // apply hover mode
+    //if (isHoverMode && vertical == 0) vertical = HOVER_MODE_THRUST;
+    if (isHoverMode) {
+        vertical += HOVER_MODE_THRUST;
+        vertical = constrain(vertical, -MAX_THRUST_VERTICAL, MAX_THRUST_VERTICAL);
+    }
 
     // curve for smoother turning
     turn = applyCurve(turn, MAX_THRUST_HORIZONTAL);
